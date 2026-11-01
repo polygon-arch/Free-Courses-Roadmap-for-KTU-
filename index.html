@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>12-Week AI & IoT Roadmap</title>
+  
+  <!-- Firebase SDKs (Compat version for simple HTML drop-in) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body { font-family: system-ui, sans-serif; background: #121212; color: #e0e0e0; margin: 0; padding: 0; }
+    .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+    
+    /* Auth Screen */
+    #auth-screen { display: block; margin-top: 50px; text-align: center; }
+    input[type="email"], input[type="password"] { padding: 12px; border-radius: 6px; border: 1px solid #444; background: #222; color: white; display: block; margin: 10px auto; width: 100%; max-width: 300px; }
+    button { background: #4285f4; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; margin: 5px; }
+    button:hover { background: #3367d6; }
+    
+    /* App Screen */
+    #app-screen { display: none; }
+    .header { position: sticky; top: 0; background: #1e1e1e; padding: 20px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 1000; margin-bottom: 30px; }
+    
+    /* Progress Bars */
+    .progress-row { display: flex; align-items: center; margin-bottom: 10px; font-size: 0.9em; }
+    .progress-label { width: 100px; font-weight: bold; }
+    .progress-track { flex-grow: 1; background: #333; border-radius: 10px; height: 12px; overflow: hidden; margin: 0 15px; }
+    .progress-fill { height: 100%; width: 0%; transition: width 0.4s ease; }
+    
+    .fill-global { background: #4caf50; }
+    .fill-google { background: #4285f4; }
+    .fill-nptel { background: #ff5722; }
+    .fill-ibm { background: #054ada; }
+    .fill-ms { background: #00a4ef; }
+    .fill-aws { background: #ff9900; }
+    
+    /* Collapsible Accordion UI */
+    .phase-accordion { background: #2a2a2a; color: white; cursor: pointer; padding: 18px; width: 100%; text-align: left; border: none; outline: none; font-size: 1.1em; font-weight: bold; border-radius: 8px; margin-top: 20px; transition: 0.3s; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
+    .phase-accordion:hover, .phase-accordion.active { background: #333; }
+    .phase-accordion::after { content: '\25BC'; font-size: 0.8em; transition: 0.3s; }
+    .phase-accordion.active::after { transform: rotate(180deg); }
+    
+    .phase-panel { padding: 0 15px; background-color: #121212; max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+    
+    /* Task List */
+    .task { background: #1e1e1e; padding: 15px; margin: 15px 0; border-radius: 8px; cursor: pointer; display: flex; align-items: flex-start; transition: background 0.2s; }
+    .task:hover { background: #252525; }
+    .task input[type="checkbox"] { margin-right: 15px; margin-top: 6px; width: 18px; height: 18px; cursor: pointer; }
+    
+    .task-details { flex-grow: 1; }
+    .task-header { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; flex-wrap: wrap; }
+    .task-title { font-weight: bold; font-size: 1.1em; }
+    
+    .tag { padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: bold; text-transform: uppercase; }
+    .tag-google { background: #4285f4; color: white; }
+    .tag-nptel { background: #ff5722; color: white; }
+    .tag-ibm { background: #054ada; color: white; }
+    .tag-ms { background: #00a4ef; color: white; }
+    .tag-aws { background: #ff9900; color: black; }
+    
+    .task-desc { color: #aaa; font-size: 0.95em; margin-bottom: 12px; line-height: 1.4; }
+    .task-link { color: #90caf9; text-decoration: none; font-size: 0.9em; display: inline-block; padding: 8px 12px; background: #2a2a2a; border-radius: 4px; }
+    .task-link:hover { background: #333; text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <!-- Authentication Screen -->
+  <div id="auth-screen" class="container">
+    <h2>KTU Roadmap Login</h2>
+    <p style="color: #aaa; font-size: 0.9em; max-width: 400px; margin: 0 auto 20px auto;">
+      Sign in to sync your Activity Points and portfolio progress securely. 
+    </p>
+    <input type="email" id="email" placeholder="Email Address">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="signUp()">Create Account</button>
+    <button onclick="signIn()">Sign In</button>
+    <p id="auth-error" style="color: #ff5252; margin-top: 15px;"></p>
+  </div>
+
+  <!-- Main Application Screen -->
+  <div id="app-screen">
+    <div id="progress-header" class="header">
+      <div class="container" style="padding: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0;">Roadmap Progress</h3>
+          <button onclick="signOut()" style="padding: 6px 12px; font-size: 0.8em; margin: 0; background: #444;">Sign Out</button>
+        </div>
+        
+        <div class="progress-row">
+          <span class="progress-label">Total</span>
+          <div class="progress-track"><div id="bar-global" class="progress-fill fill-global"></div></div>
+          <span id="text-global">0%</span>
+        </div>
+        <div class="progress-row">
+          <span class="progress-label" style="color: #4285f4;">Google</span>
+          <div class="progress-track"><div id="bar-google" class="progress-fill fill-google"></div></div>
+          <span id="text-google">0%</span>
+        </div>
+        <div class="progress-row">
+          <span class="progress-label" style="color: #ff5722;">NPTEL</span>
+          <div class="progress-track"><div id="bar-nptel" class="progress-fill fill-nptel"></div></div>
+          <span id="text-nptel">0%</span>
+        </div>
+        <div class="progress-row">
+          <span class="progress-label" style="color: #054ada;">IBM</span>
+          <div class="progress-track"><div id="bar-ibm" class="progress-fill fill-ibm"></div></div>
+          <span id="text-ibm">0%</span>
+        </div>
+        <div class="progress-row">
+          <span class="progress-label" style="color: #00a4ef;">Microsoft</span>
+          <div class="progress-track"><div id="bar-ms" class="progress-fill fill-ms"></div></div>
+          <span id="text-ms">0%</span>
+        </div>
+        <div class="progress-row">
+          <span class="progress-label" style="color: #ff9900;">AWS</span>
+          <div class="progress-track"><div id="bar-aws" class="progress-fill fill-aws"></div></div>
+          <span id="text-aws">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="container" id="task-list-container">
+      <!-- Tasks dynamically rendered here via JS -->
+    </div>
+  </div>
+
+  <script>
+    // Firebase Configuration keys
+    const firebaseConfig = {
+      apiKey: "AIzaSyAORfMioCCpd5hu1XVMNPBBE6TQvJ0VVeM",
+      authDomain: "roadmap-tracker-62b77.firebaseapp.com",
+      projectId: "roadmap-tracker-62b77",
+      storageBucket: "roadmap-tracker-62b77.firebasestorage.app",
+      messagingSenderId: "1009954268260",
+      appId: "1:1009954268260:web:1ac51c17cdb890e8e16b71"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    let currentUser = null;
+    let userProgress = {};
+
+    // Grouped Tasks for Accordion UI
+    const phases = [
+      {
+        phaseTitle: "Phase 1: Core Algorithms & KTU Points",
+        tasks: [
+          { id: 1, title: "Data Foundations", company: "Google", tag: "tag-google", desc: "Complete Pandas and NumPy modules. Focus on data cleaning and feature engineering.", link: "https://developers.google.com/machine-learning/crash-course" },
+          { id: 2, title: "Supervised Learning", company: "Google", tag: "tag-google", desc: "Work through linear regression, logistic regression, and loss calculation.", link: "https://developers.google.com/machine-learning/crash-course" },
+          { id: 3, title: "Deep Learning Basics", company: "NPTEL", tag: "tag-nptel", desc: "Transition to neural networks. (Apply for Coursera Financial Aid if substituting).", link: "https://swayam.gov.in/explorer?category=AI_and_Machine_Learning" },
+          { id: 4, title: "AI/ML Certification", company: "NPTEL", tag: "tag-nptel", desc: "Complete the proctored exam to secure your Category SA6 Activity Points.", link: "https://swayam.gov.in/explorer?category=AI_and_Machine_Learning" }
+        ]
+      },
+      {
+        phaseTitle: "Phase 2: Generative AI & Web Integration",
+        tasks: [
+          { id: 5, title: "LLM Architecture", company: "Google", tag: "tag-google", desc: "Complete Intro to Generative AI and Intro to Large Language Models.", link: "https://www.cloudskillsboost.google/paths/118" },
+          { id: 6, title: "Prompt Engineering", company: "Google", tag: "tag-google", desc: "Complete Prompt Design in Vertex AI. Learn zero-shot and few-shot techniques.", link: "https://www.cloudskillsboost.google/paths/118" },
+          { id: 7, title: "NLP & Chatbots", company: "IBM", tag: "tag-ibm", desc: "Begin NLP modules. Analyze how AI processes language syntax.", link: "https://skillsbuild.org/adult-learners/explore-learning/artificial-intelligence" },
+          { id: 8, title: "Custom App Deployment", company: "IBM", tag: "tag-ibm", desc: "Build a Watsonx chatbot and embed it into a custom HTML/CSS front-end on GitHub.", link: "https://skillsbuild.org/adult-learners/explore-learning/artificial-intelligence" }
+        ]
+      },
+      {
+        phaseTitle: "Phase 3: Edge AI & Cloud Infrastructure",
+        tasks: [
+          { id: 9, title: "Microcontrollers", company: "Microsoft", tag: "tag-ms", desc: "Setup Wokwi simulator. Write C/C++ to read digital inputs without physical hardware.", link: "https://github.com/microsoft/IoT-For-Beginners" },
+          { id: 10, title: "Actuators & MQTT", company: "Microsoft", tag: "tag-ms", desc: "Program motor controls and connect simulated edge devices to the cloud.", link: "https://github.com/microsoft/IoT-For-Beginners" },
+          { id: 11, title: "Cloud Architecture", company: "AWS", tag: "tag-aws", desc: "Map out how data moves from an IoT edge device into AWS cloud storage.", link: "https://explore.skillbuilder.aws/learn/course/external/view/elearning/134/aws-cloud-practitioner-essentials" },
+          { id: 12, title: "Cloud Certification", company: "AWS", tag: "tag-aws", desc: "Take the free practice assessments for the AWS Cloud Practitioner exam.", link: "https://explore.skillbuilder.aws/learn/course/external/view/elearning/134/aws-cloud-practitioner-essentials" }
+        ]
+      }
+    ];
+
+    // Render HTML Task List with Accordions
+    function renderTasks() {
+      const container = document.getElementById('task-list-container');
+      container.innerHTML = '';
+      
+      phases.forEach((phase, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'phase-accordion';
+        if (index === 0) btn.classList.add('active'); 
+        btn.innerText = phase.phaseTitle;
+        
+        const panel = document.createElement('div');
+        panel.className = 'phase-panel';
+        if (index === 0) panel.style.maxHeight = '2000px'; 
+        
+        phase.tasks.forEach(task => {
+          const isChecked = userProgress[task.id] ? 'checked' : '';
+          const taskDiv = document.createElement('div');
+          taskDiv.className = 'task';
+          taskDiv.onclick = (e) => toggleTask(task.id, e);
+          
+          taskDiv.innerHTML = `
+            <input type="checkbox" id="check-${task.id}" ${isChecked}>
+            <div class="task-details">
+              <div class="task-header">
+                <span class="task-title">Week ${task.id}: ${task.title}</span>
+                <span class="tag ${task.tag}">${task.company}</span>
+              </div>
+              <div class="task-desc">${task.desc}</div>
+              <a href="${task.link}" class="task-link" target="_blank" rel="noopener noreferrer">Access Course &rarr;</a>
+            </div>
+          `;
+          panel.appendChild(taskDiv);
+        });
+
+        btn.addEventListener("click", function() {
+          this.classList.toggle("active");
+          if (panel.style.maxHeight) {
+            panel.style.maxHeight = null;
+          } else {
+            panel.style.maxHeight = panel.scrollHeight + "px";
+          }
+        });
+
+        container.appendChild(btn);
+        container.appendChild(panel);
+      });
+      
+      updateProgressUI();
+    }
+
+    // Toggle Task & Save to Firestore
+    async function toggleTask(id, event) {
+      if (event.target.closest('a')) return;
+      if (!currentUser) return;
+      
+      const checkbox = document.getElementById(`check-${id}`);
+      if (event.target !== checkbox) {
+        checkbox.checked = !checkbox.checked;
+      }
+      
+      userProgress[id] = checkbox.checked;
+      updateProgressUI();
+
+      try {
+        await db.collection('users').doc(currentUser.uid).set({
+          progress: userProgress
+        }, { merge: true });
+      } catch (error) {
+        console.error("Error saving progress: ", error);
+      }
+    }
+
+    // Calculate and Animate Progress Bars
+    function updateProgressUI() {
+      const companyTotals = { Google: 0, NPTEL: 0, IBM: 0, Microsoft: 0, AWS: 0 };
+      const companyCompleted = { Google: 0, NPTEL: 0, IBM: 0, Microsoft: 0, AWS: 0 };
+      let globalCompleted = 0;
+      let totalTasks = 0;
+
+      phases.forEach(phase => {
+        phase.tasks.forEach(task => {
+          totalTasks++;
+          companyTotals[task.company]++;
+          if (userProgress[task.id]) {
+            companyCompleted[task.company]++;
+            globalCompleted++;
+          }
+        });
+      });
+
+      const globalPct = Math.round((globalCompleted / totalTasks) * 100);
+      document.getElementById('bar-global').style.width = `${globalPct}%`;
+      document.getElementById('text-global').innerText = `${globalPct}%`;
+
+      Object.keys(companyTotals).forEach(company => {
+        const id = company.toLowerCase().replace('microsoft', 'ms');
+        const pct = companyTotals[company] > 0 ? Math.round((companyCompleted[company] / companyTotals[company]) * 100) : 0;
+        document.getElementById(`bar-${id}`).style.width = `${pct}%`;
+        document.getElementById(`text-${id}`).innerText = `${pct}%`;
+      });
+    }
+
+    // Firebase Authentication Functions
+    function showError(msg) {
+      document.getElementById('auth-error').innerText = msg;
+    }
+
+    async function signUp() {
+      const email = document.getElementById('email').value;
+      const pass = document.getElementById('password').value;
+      try {
+        await auth.createUserWithEmailAndPassword(email, pass);
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    async function signIn() {
+      const email = document.getElementById('email').value;
+      const pass = document.getElementById('password').value;
+      try {
+        await auth.signInWithEmailAndPassword(email, pass);
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    function signOut() {
+      auth.signOut();
+    }
+
+    // Auth State Observer
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        currentUser = user;
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('app-screen').style.display = 'block';
+        
+        const doc = await db.collection('users').doc(user.uid).get();
+        if (doc.exists && doc.data().progress) {
+          userProgress = doc.data().progress;
+        } else {
+          userProgress = {};
+        }
+        renderTasks();
+      } else {
+        currentUser = null;
+        userProgress = {};
+        document.getElementById('auth-screen').style.display = 'block';
+        document.getElementById('app-screen').style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
